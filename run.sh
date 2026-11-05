@@ -21,6 +21,9 @@
 # the load fails it; the container restarts until it loads, however many tries that takes. Each of
 # those restarts, like any `podman start` of the container, keeps the margin and refits against
 # the card as it is by then, so on a shared card only a rerun of this script restores EMS's share.
+# The cache of what it read is kept at 8 bits, half of f16's 1 GB at this context, so the whole
+# model fits a 6.2 GB share: llama.cpp leaves the last layers off the card first, the 0.7 GB output
+# layer among them, and with those on the CPU it answers at a tenth of the speed (ein/core#1016).
 #
 # THE TEMPLATE is Qwen3.5's own with one change (templates/qwen35-stable-history.jinja): every
 # assistant turn keeps the empty think block it was written with. The original drops it from turns
@@ -91,6 +94,7 @@ podman run --replace -d --name "$LLM_CONTAINER_NAME" --restart always --network=
   -m "/models/$LLM_GGUF_FILE" --alias "$LLM_ALIAS" \
   --host 127.0.0.1 --port "$LLM_PORT" \
   "${layers[@]}" -c "$LLM_CTX" -np 1 --cache-ram "$LLM_CACHE_RAM_MB" \
+  --cache-type-k q8_0 --cache-type-v q8_0 \
   --jinja --chat-template-file "/templates/$LLM_TEMPLATE" \
   --chat-template-kwargs '{"enable_thinking": false}'
 
