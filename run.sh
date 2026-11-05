@@ -63,6 +63,9 @@ if [ ! -f "$LLM_MODELS_PATH/$LLM_GGUF_FILE" ]; then
   mv "$LLM_MODELS_PATH/$LLM_GGUF_FILE.part" "$LLM_MODELS_PATH/$LLM_GGUF_FILE"
 fi
 
+# What sizes the model on the card: the server's arguments that fit-params takes too.
+sizing=(-m "/models/$LLM_GGUF_FILE" -c "$LLM_CTX" -np 1 --cache-type-k q8_0 --cache-type-v q8_0)
+
 # Measured with the previous server gone, or its own layers would count against the next one.
 podman rm -f "$LLM_CONTAINER_NAME" >/dev/null 2>&1 || true
 if [ "$LLM_GPU" = "1" ]; then
@@ -76,6 +79,15 @@ if [ "$LLM_GPU" = "1" ] && [ "$share" -gt 1024 ]; then
   gpu=(--device nvidia.com/gpu=all)
   layers=(-ngl auto --fit on --fit-target "$margin")
   echo "=== a share of $share MB of the card, with $used MB of the card in use by others: $margin MB left free beside the model"
+  # The server logs its fit only at -lv 4, which also logs every request: fit-params says it first.
+  fitted=$(podman run --rm "${gpu[@]}" -v "$LLM_MODELS_PATH:/models:ro" --entrypoint /app/llama "$LLM_IMAGE" \
+    fit-params "${sizing[@]}" "${layers[@]}" 2>/dev/null) || fitted=
+  case $fitted in
+    *"-ngl -1"*) echo "=== all of the model's layers fit there" ;;
+    *"-ngl 0"*) echo "=== none of the model's layers fit there: on the CPU" ;;
+    *-ngl*) echo "=== ${fitted##*-ngl } of the model's layers fit there; the others run on the CPU, at a fraction of the speed" ;;
+    *) echo "=== llama.cpp's fit-params did not say how many of the model's layers fit there" ;;
+  esac
 else
   # No card, or none left beside EMS's share: the CPU alone, the card not even mapped, so not a
   # buffer of the model's lands on it.
@@ -91,10 +103,9 @@ podman run --replace -d --name "$LLM_CONTAINER_NAME" --restart always --network=
   -v "$LLM_MODELS_PATH:/models:ro" \
   -v "$SCRIPT_DIR/templates:/templates:ro" \
   "$LLM_IMAGE" \
-  -m "/models/$LLM_GGUF_FILE" --alias "$LLM_ALIAS" \
+  "${sizing[@]}" --alias "$LLM_ALIAS" \
   --host 127.0.0.1 --port "$LLM_PORT" \
-  "${layers[@]}" -c "$LLM_CTX" -np 1 --cache-ram "$LLM_CACHE_RAM_MB" \
-  --cache-type-k q8_0 --cache-type-v q8_0 \
+  "${layers[@]}" --cache-ram "$LLM_CACHE_RAM_MB" \
   --jinja --chat-template-file "/templates/$LLM_TEMPLATE" \
   --chat-template-kwargs '{"enable_thinking": false}'
 

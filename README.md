@@ -30,3 +30,4 @@ container through CDI, which EMS's README sets up under "A GPU host".
 
 On a card shared with EMS, set `LLM_CARD_RESERVE_MB` to EMS's own share (`EMS_CARD_SHARE_MB`) plus
 a little: the model takes as many layers as fit in the rest, and runs the others on the processor.
+`run.sh` says how many fit before it starts the server.
