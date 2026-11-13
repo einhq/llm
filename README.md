@@ -28,6 +28,7 @@ container through CDI, which EMS's README sets up under "A GPU host".
 | `LLM_CARD_RESERVE_MB` | `8800`                    | how much of the card it leaves free, for EMS on the same card |
 | `LLM_CONTAINER_NAME`  | `llm`                     | the container's name                                          |
 
-On a card shared with EMS, set `LLM_CARD_RESERVE_MB` to EMS's own share (`EMS_CARD_SHARE_MB`) plus
-a little: the model takes as many layers as fit in the rest, and runs the others on the processor.
+On a card shared with EMS, set `LLM_CARD_RESERVE_MB` to EMS's share of the card plus a little: the
+model takes as many layers as fit in the rest, and runs the others on the processor. EMS's share is
+its user's to move while it runs; this reserve is read when the model starts.
 `run.sh` says how many fit before it starts the server.

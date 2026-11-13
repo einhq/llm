@@ -11,7 +11,7 @@
 # reads the card's free memory for its own models, so it sees this.
 #
 # HOW MUCH OF THE CARD: as many layers as leave EMS its share, LLM_CARD_RESERVE_MB. A host sets it to
-# EMS's own EMS_CARD_SHARE_MB, the most EMS holds there, so neither loads into the other's part
+# EMS's share of the card, the most EMS holds there, so neither loads into the other's part
 # whichever starts first. llama.cpp fits the layers itself (`-ngl auto --fit`), to what is free less
 # a margin, so the margin is that share less what is in use when it starts. It stops about 0.5 GB
 # short of what it is given. On a 16 GB card every layer fits; on 12 GB some; on 8 GB none, and it
